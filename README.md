@@ -1,4 +1,4 @@
-# SalesPulse-Sales-Performance-Analysis
+# SalesPulse-Sales Performance Analysis
 
 
 An end-to-end retail analytics project — 51,290 order lines across 25,728 orders, 165 countries, and 5 global markets, taken from a raw Excel export through a validated PostgreSQL star schema to a four-page Power BI dashboard. Cleaning and validation in Python, business analysis in SQL, customer segmentation in Python — each tool used where it's actually the right one.
