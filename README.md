@@ -1,131 +1,106 @@
-# SalesPulse-Sales Performance Analysis
+# SalesPulse: Sales Performance Analysis
 
+Analysis of the Global Superstore sample dataset: raw Excel data is cleaned in Python, loaded into a PostgreSQL star schema, analysed in SQL, and shown in a four-page Power BI dashboard.
 
-An end-to-end retail analytics project — 51,290 order lines across 25,728 orders, 165 countries, and 5 global markets, taken from a raw Excel export through a validated PostgreSQL star schema to a four-page Power BI dashboard. Cleaning and validation in Python, business analysis in SQL, customer segmentation in Python — each tool used where it's actually the right one.
+The question: sales grew every year, so where is that growth not turning into profit?
 
-**Dataset:** 51,290 order lines · 25,728 distinct orders · 17,415 customers · 165 countries · 5 markets
-**Stack:** Python (pandas) · PostgreSQL · SQL · Power BI (DAX)
-**Observation window:** January 2012 – December 2015
-
----
-
-## What This Does
-
-Sales grew every year in this dataset — but a quarter of all order lines lose money, one entire sub-category is unprofitable despite strong sales, and profit is heavily concentrated in a small slice of customers. This project answers the question that matters more than "are we growing": **where specifically is that growth leaking profit, and what should change?**
-
-Every number below was pulled directly from the executed notebooks and the live Postgres database.
-
-## Project Pipeline
-
-1. **Clean & Validate** (`01_data_cleaning.ipynb`) — profiling, business-rule validation, referential-integrity checks.
-2. **Load to PostgreSQL** (`02_load_to_postgres.ipynb`, `sql/01_schema.sql`) — cleaned data shaped into a star schema, loaded with self-verifying assertions on row counts, grain, and foreign-key coverage.
-3. **Analyze** (`03_analysis.ipynb`) — SQL answers each business question first; Python is used only for RFM scoring, where quantile logic is more readable in pandas than SQL. Python output is written back into Postgres.
-4. **Dashboard** (`powerbi/sales_dashboard.pbix`) — four report pages connected directly to PostgreSQL.
-
-## Data Model
-
-```
-                    dim_customer
-                         │
-dim_product ─────  fact_order_lines  ───── dim_geography
-                         │
-                    dim_manager  (joined via dim_geography.region)
-```
-
-`bridge_returns` is loaded into Postgres as the raw source for the `is_returned_line` flag but excluded from the Power BI model — that flag is already denormalized onto `fact_order_lines`, so including the bridge table again would only invite a spurious relationship without adding anything new.
-
-## Business Questions & Where They're Answered
-
-| # | Question | Answered In |
-|---|---|---|
-| 1 | Is the business growing, and is profit keeping pace with sales? | `03_analysis.ipynb` — YoY Growth |
-| 2 | Which sub-categories generate sales but destroy profit? | `03_analysis.ipynb` — Profit Leakage |
-| 3 | At what discount level does profitability actually deteriorate? | `03_analysis.ipynb` — Discount vs. Profitability |
-| 4 | Which markets grew, and did their profitability improve or worsen? | `03_analysis.ipynb` — Market Growth vs. Margin |
-| 5 | How dependent is each market on a small number of customers? | `03_analysis.ipynb` — Customer Profit Concentration |
-| 6 | Which customer groups are worth retaining or worth re-engaging? | `03_analysis.ipynb` — RFM Segmentation |
-
-## Techniques Used
-
-- Referential-integrity checks with hard `assert`s, not just printed warnings
-- Weighted aggregate margin (`SUM(profit)/SUM(sales)`) instead of an average of line-level margins
-- Window functions (`LAG`, `RANK() OVER (PARTITION BY ...)`) for YoY growth and per-market customer ranking
-- RFM segmentation with quantile scoring, using an honest 4-tier frequency score rather than forcing a false 1–5 symmetry
-- `.env`-based credential handling — no database password committed to the repository
-
-## Key Insights
-
-1. **Profit growth outpaced sales in 2014, then fell behind in 2015.** Sales grew every year ($2.26M → $4.30M), but 2015's profit growth (23.9%) trailed its sales growth (26.3%) for the first time — a reversal from 2014.
-2. **Tables is the only sub-category losing money.** -$64,083 profit on $757K sales (-8.5% margin), with 57.6% of its lines unprofitable — more than double any other sub-category.
-3. **Every sub-category turns unprofitable past a 20% discount.** Tables, Bookcases, and Chairs all show strong margins at 0% discount, then outright losses beyond 20% — down to -163% margin at 60%+ discount for Tables.
-4. **Europe and Asia Pacific grew fastest but got less profitable.** Europe: +118% sales, margin down 14.2% → 13.3%. Asia Pacific: +92% sales, margin down 10.3% → 9.8%. Africa is the exception — +122% sales *and* margin up 8.6% → 13.9%.
-5. **Africa and USCA are unusually dependent on a few accounts.** Their top 5 customers hold 12.4% and 10.1% of market profit respectively, versus 3.0–3.6% everywhere else.
-6. **A quarter of customers are worth almost nothing; a different 12% are worth winning back.** "Lost / Low Value" is 26.6% of customers but only 0.7% of profit. "Lapsed High-Value" is 12.2% of customers but 25.7% of profit — high-value buyers who've gone quiet.
-
-## Recommendations
-
-- Investigate Tables' cost/pricing baseline directly — its loss looks structural, not just discount-driven.
-- Cap standard discount approval at 15–20% for Tables, Bookcases, and Chairs; route higher discounts through manager sign-off.
-- Slow sales-growth investment in Europe and Asia Pacific until margin is addressed.
-- Study Africa's pricing/operating model — it's the only market improving margin while growing fast.
-- Build dedicated account coverage for Africa's and USCA's top customers given their outsized profit concentration.
-- Prioritize a reactivation campaign for the 2,132 Lapsed High-Value customers before spending on general acquisition.
-- Don't allocate retention budget to the Lost / Low Value segment — the economics don't justify it.
+| | |
+|---|---|
+| Data | 51,290 order lines, 25,728 orders, 5 markets, 23 regions |
+| Period | January 2012 to December 2015 |
+| Totals | $12.64M sales, $1.47M profit, 11.61% margin, 4.19% order return rate |
+| Stack | Python (pandas, SQLAlchemy), PostgreSQL, SQL, Power BI (DAX) |
 
 ## Dashboard
 
-| Page | Visuals |
-|---|---|
-| 01 Executive Overview | KPI cards (Sales, Profit, Margin, Orders, Return Rate) · Sales & Profit trend · Sales by Category (donut) · Sales by Region (bar) · Category/Region/Segment slicers |
-| 02 Product & Category | Sub-category profit breakdown · Category-level detail (pivot table) · Category/sub-category slicers |
-| 03 Regional & Customer | Market-level performance · Customer profit concentration · Sales-vs-profit customer view (scatter) · Regional detail (pivot table) |
-| 04 Returns & Profitability | Discount-band profitability · Returns detail (pivot table) · Market/segment slicers |
+### Executive Overview
+![Executive Overview](images/01_executive_overview.png)
 
-All four pages connect directly to PostgreSQL.
+### Product and Category
+![Product and Category](images/02_product_category.png)
 
-## Folder Structure
+### Regional and Customer
+![Regional and Customer](images/03_regional_customer.png)
 
-```
-Vantage-Retail-Analytics/
-│
-├── data/
-│       global_superstore_2016.xlsx
-│
-├── notebooks/
-│       01_data_cleaning.ipynb
-│       02_load_to_postgres.ipynb
-│       03_analysis.ipynb
-│
-├── sql/
-│       01_schema.sql
-│
-├── outputs/
-│       orders_clean.csv
-│       returns_clean.csv
-│       people_clean.csv
-│
-├── powerbi/
-│       sales_dashboard.pbix
-│
-├── .env
-├── .gitignore
-└── README.md
-```
+### Returns and Profitability
+![Returns and Profitability](images/04_returns_profitability.png)
 
-## Tech Stack
+## Project Workflow
 
-| Category | Tools |
-|---|---|
-| Data Cleaning & Validation | Python — pandas, numpy |
-| Database | PostgreSQL |
-| Analysis | SQL (CTEs, window functions) · Python (pandas, scipy) |
-| Visualization | Power BI (DAX) |
-| Version Control | Git, GitHub |
+| Step | File | What it does | Output |
+|---|---|---|---|
+| 1 | `notebooks/01_data_cleaning.ipynb` | Reads the Orders, Returns and People sheets. Checks keys, duplicates, business rules and that every returned order exists in Orders. Fixes the Canada region mismatch and extra spaces in product names. Adds the return flag and delivery days. | 3 cleaned CSVs in `outputs/` |
+| 2 | `notebooks/02_load_to_postgres.ipynb` | Builds the star schema from `sql/01_schema.sql`, splits the data into a fact table and dimensions, checks row counts and keys, and loads everything. | 6 tables in PostgreSQL |
+| 3 | `notebooks/03_analysis.ipynb` | SQL for yearly growth, profit by sub-category, discount bands, market growth and customer concentration. Customer scoring (RFM) in pandas. Results written back to PostgreSQL. | `rfm_customers`, `rfm_segment_summary` |
+| 4 | `powerbi/sales_dashboard.pbix` | Four report pages connected to PostgreSQL. | Dashboard |
 
-## How to Reproduce
+Data model: `fact_order_lines` (one row per order line, 51,290) with `dim_customer` (17,415), `dim_product` (3,788), `dim_geography` (3,856) and `dim_manager` (23). `bridge_returns` (1,079) holds the returned orders.
 
-1. Create a PostgreSQL database and a `.env` file in the project root with `DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT`, `DB_NAME`.
-2. Run `notebooks/01_data_cleaning.ipynb` top to bottom — produces the cleaned CSVs in `outputs/`.
-3. Run `notebooks/02_load_to_postgres.ipynb` — builds the schema from `sql/01_schema.sql` and loads all six tables.
-4. Run `notebooks/03_analysis.ipynb` — runs all six analyses and writes the RFM results back into Postgres.
-5. Open `powerbi/sales_dashboard.pbix` in Power BI Desktop, point the PostgreSQL connector at your database, and refresh.
+## Key Findings
+
+**Growth.** Sales grew from $2.26M (2012) to $4.30M (2015) and profit from $249K to $504K. Profit grew faster than sales in 2013 and 2014 and slightly slower in 2015 (23.9% vs 26.3%). Margin by year: 11.0%, 11.5%, 11.9%, 11.7%.
+
+**Furniture margin.** Furniture earns 6.94%, against 13.99% for Technology and 13.69% for Office Supplies. Tables is the only sub-category with a net loss: $757K in sales, a $64K loss (-8.5% margin), and 57.6% of its order lines lose money (next highest is Chairs at 32.0%). Without Tables, Furniture margin would be about 10.4%. Return rates are 4.1% to 4.3% in every category, so returns do not explain the gap.
+
+**Discounts.** Margin by discount band for the three sub-categories analysed:
+
+| Sub-category | 0% | 0-20% | 20-40% | 40-60% | 60%+ |
+|---|---|---|---|---|---|
+| Bookcases | 24.4% | 13.1% | -23.7% | -65.4% | -152.0% |
+| Chairs | 23.9% | 10.6% | -10.3% | -72.8% | -134.2% |
+| Tables | 23.1% | 5.0% | -18.1% | -51.8% | -163.1% |
+
+In Tables, 467 of 861 order lines (54%) have a discount above 20%. This fits with discounting driving the loss, but the analysis does not separate discount from product cost or mix.
+
+**Markets (2012 vs 2015).** Every market grew. Margin fell in Europe and Asia Pacific and rose in the other three.
+
+| Market | Sales growth | Margin 2012 to 2015 |
+|---|---|---|
+| Africa | +122.5% | 8.6% to 13.9% |
+| Europe | +118.3% | 14.2% to 13.3% |
+| Asia Pacific | +92.4% | 10.3% to 9.8% |
+| LATAM | +83.5% | 9.5% to 10.4% |
+| USCA | +53.6% | 10.4% to 13.1% |
+
+**Customer concentration.** The top 5 customers hold 12.4% of profit in Africa and 10.1% in USCA, and 3.0% to 3.6% in the other markets.
+
+**Customer segments (RFM).** Rule-based groups from recency (R), frequency (F) and monetary value (M) scores:
+
+| Segment | Rule | Customers | Share of profit |
+|---|---|---|---|
+| Recent, Low Frequency | R 4-5, F 1-2 | 5,575 (32.0%) | 26.9% |
+| Lapsed High-Value | R 1-2, M 4-5, F 1-2 | 2,132 (12.2%) | 25.7% |
+| Champions | R 4-5, F 3-4 | 1,396 (8.0%) | 24.2% |
+| Regular | R 3 | 3,483 (20.0%) | 20.1% |
+| At Risk | R 1-2, F 3-4 | 192 (1.1%) | 2.3% |
+| Lost / Low Value | R 1-2, F 1-2, M 1-3 | 4,637 (26.6%) | 0.7% |
+
+Lapsed High-Value is 12% of customers and about a quarter of profit, so it is the first group to look at for win-back work. Whether reactivation would work has not been tested.
+
+**What to look at next**
+- Check at product level whether specific Tables products drive the loss.
+- Recalculate margins for Tables, Bookcases and Chairs with discounts capped at 20%.
+- Look at what changed in Africa, where sales more than doubled and margin rose.
+
+## Method
+
+- Margin is `SUM(profit) / SUM(sales)` per group, not an average of line-level margins.
+- Return rate uses distinct orders (1,079 of 25,728), because the Returns sheet lists orders, not lines.
+- RFM snapshot date is the last order date plus one day. Recency and monetary value use five equal groups. Frequency uses four fixed tiers (1, 2, 3, 4+ orders) because most customers have one or two orders.
+
+## Limitations
+
+- There are 17,415 customer IDs but only 796 distinct customer names, and one name appears under IDs in up to 32 countries. Customer counts, concentration and RFM are at the customer ID level.
+- Discount findings show an association in three sub-categories, not proof of cause. The other 14 sub-categories were not analysed by discount band.
+- The market comparison uses 2012 and 2015 only.
+- RFM segments are rule-based labels, not validated behaviour groups.
+- Regional return rates (about 4.3% to 5.4%) come from roughly 1,000 returned orders across 23 regions, so small differences should not be over-read.
+- `Delivery Days` is order date to ship date, not delivery to the customer.
+- This is a sample dataset, so the findings show the method rather than a real business.
+
+## How to Run
+
+1. Create a PostgreSQL database and a `.env` file in the project root with `DB_USER`, `DB_PASS`, `DB_HOST`, `DB_PORT` and `DB_NAME`. `.env` is in `.gitignore`.
+2. Put `global_superstore_2016.xlsx` in `data/`.
+3. Run notebooks 01, 02 and 03 in order, each from top to bottom.
+4. Open `powerbi/sales_dashboard.pbix`, point the PostgreSQL connection at your database, and refresh.
