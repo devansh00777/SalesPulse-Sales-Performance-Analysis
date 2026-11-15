@@ -17,13 +17,13 @@ The question: sales grew every year, so where is that growth not turning into pr
 ![Executive Overview](powerbi/images/01_executive_overview.png)
 
 ### Product and Category
-![Product and Category](images/02_product_category.png)
+![Product and Category](powerbi/images/02_product_category.png)
 
 ### Regional and Customer
-![Regional and Customer](images/03_regional_customer.png)
+![Regional and Customer](powerbi/images/03_regional_customer.png)
 
 ### Returns and Profitability
-![Returns and Profitability](images/04_returns_profitability.png)
+![Returns and Profitability](powerbi/images/04_returns_profitability.png)
 
 ## Project Workflow
 
