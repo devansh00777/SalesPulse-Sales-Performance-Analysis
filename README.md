@@ -14,7 +14,7 @@ The question: sales grew every year, so where is that growth not turning into pr
 ## Dashboard
 
 ### Executive Overview
-![Executive Overview](images/01_executive_overview.png)
+![Executive Overview](powerbi/images/01_executive_overview.png)
 
 ### Product and Category
 ![Product and Category](images/02_product_category.png)
